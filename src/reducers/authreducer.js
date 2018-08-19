@@ -5,6 +5,9 @@ import {
     USER_DELETE,
     TOKEN_SUCCESS,
     TOKEN_DELETE,
+    USERPHOTO_FETCH_START,
+    USERPHOTO_FETCH_SUCCESS,
+    USERPHOTO_FETCH_FAILED,
 } from '../actions/authaction';
 
 const initUserData = {
@@ -47,4 +50,20 @@ const tokenData = (state = initTokenData, action) => {
     }
 }
 
-export { userData, tokenData };
+const initPhotoState = {
+    blob: null,
+    url: null,
+    loading: false,
+    error: null,
+}
+
+const photoData = (state = initPhotoState, action) => {
+    switch (action.type) {
+        case USERPHOTO_FETCH_START: return { blob: null, url: null, loading: true, error: null };
+        case USERPHOTO_FETCH_SUCCESS: return { blob: action.blob, url: action.url, loading: false, error: null };
+        case USERPHOTO_FETCH_FAILED: return { blob: null, url: null, loading: false, error: action.error }
+        default: return  state;
+    }
+}
+
+export { userData, tokenData, photoData };

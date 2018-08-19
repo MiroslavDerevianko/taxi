@@ -44,9 +44,10 @@ const photoStart = () => ({
     type: USERPHOTO_FETCH_START
 });
 
-const photoSuccess = (photodata) => ({
+const photoSuccess = (blob, url) => ({
     type: USERPHOTO_FETCH_SUCCESS,
-    photodata
+    blob,
+    url,
 });
 
 const photoFailed = (error) => ({
@@ -60,12 +61,12 @@ const checkAndGetToken = (getState) => {
     }
     if (localStorage.getItem('Taxi_Token')) {
         return (JSON.parse(localStorage.getItem('Taxi_Token')));
-    } 
+    }
     return null;
 }
 
 // actionCreator register driver
-export const registerDriver = (regdata) => (dispatch, getState) => {
+export const registerDriver = (regdata, file) => (dispatch, getState) => {
     dispatch(userStart());
     fetch(`${apiurl}/api/accounts/drivers`, {
         method: 'POST',
@@ -96,7 +97,10 @@ export const loginDriver = (logdata) => (dispatch, getState) => {
             dispatch(tokenSuccess(token));
             dispatch(getDriver());
         })
-        .catch(error => dispatch(userFailed(error.message)));
+        .catch(error => {
+            dispatch(userFailed(error.message));
+            dispatch(logout());
+        });
 }
 
 // actionCreator get driver profile
@@ -112,10 +116,11 @@ export const getDriver = () => (dispatch, getState) => {
             .then(res => res.json())
             .then(data => {
                 dispatch(userSuccess(data));
+                dispatch(getPhoto(token, data.profilePictureId));
             })
             .catch(error => dispatch(userFailed(error.message)));
     } else {
-        // dispatch(logout());
+        dispatch(logout());
     }
 }
 
@@ -126,15 +131,48 @@ export const logout = () => (dispatch, getState) => {
 }
 
 // actionCreator get user photo (not ready)
-const getPhoto = (token, photoid) => (dispatch, getState) => {
+export const getPhoto = (token, photoid) => (dispatch, getState) => {
     dispatch(photoStart());
     if (token) {
-        fetch(`${apiurl}/api/images/${photoid}`)
+        fetch(`${apiurl}/api/images/${photoid}`, {
+            method: 'GET',
+            headers: new Headers({
+                'Authorization': `Bearer ${token.auth_token}`
+            })
+        })
             .then(res => res.blob())
-            .then(blob => URL.createObjectURL(blob))
-            .then(url => {
-                console.log(url);
+            .then(blob => {
+                const url = URL.createObjectURL(blob);
+                dispatch(photoSuccess(blob, url));
             })
             .catch(error => dispatch(photoFailed(error.message)));
+    } else {
+        dispatch(logout());
+    }
+}
+
+// actionCreator upload user photo
+export const uploadPhoto = (file) => (dispatch, getState) => {
+    dispatch(photoStart());
+    const token = checkAndGetToken(getState);
+    if (token && file) {
+        const data = new FormData();
+        data.append('files', file);
+
+        fetch(`${apiurl}/api/profilepicture`, {
+            method: 'POST',
+            headers: new Headers({
+                'Authorization': `Bearer ${token.auth_token}`,
+                // 'Content-Type': 'multipart/form-data'
+            }),
+            body: data
+        })
+            .then(res => res.json())
+            .then(data => {
+                dispatch(getDriver());
+            })
+            .catch(error => dispatch(photoFailed(error.message)));
+    } else {
+        dispatch(logout());
     }
 }
